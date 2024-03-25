@@ -1,0 +1,59 @@
+import logging
+from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
+import wikipedia
+
+# Enable logging
+logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Define a function to handle the /start command
+def start(update, context):
+    update.message.reply_text('Hello! I am WikipediaBot. Send me a keyword, and I will search Wikipedia for you.')
+
+# Define a function to handle text messages
+def search_wikipedia(update, context):
+    keyword = update.message.text
+    try:
+        # Search Wikipedia for the keyword
+        search_results = wikipedia.search(keyword)
+        if search_results:
+            # Get the summary of the first search result
+            summary = wikipedia.summary(search_results[0], sentences=3)
+            update.message.reply_text(summary)
+        else:
+            update.message.reply_text("Sorry, I couldn't find any information on that topic.")
+    except wikipedia.exceptions.DisambiguationError as e:
+        # Handle disambiguation errors
+        options = ", ".join(e.options[:5])  # Limit options to avoid flooding
+        update.message.reply_text(f"Multiple results found. Please specify: {options}")
+    except Exception as e:
+        update.message.reply_text("An error occurred while processing your request.")
+
+# Define a function to handle errors
+def error(update, context):
+    logger.warning('Update "%s" caused error "%s"', update, context.error)
+
+def main():
+    # Set up the Telegram Bot
+    updater = Updater("YOUR_TELEGRAM_BOT_TOKEN", use_context=True)
+
+    # Get the dispatcher to register handlers
+    dp = updater.dispatcher
+
+    # Register command handlers
+    dp.add_handler(CommandHandler("start", start))
+
+    # Register a message handler for text messages
+    dp.add_handler(MessageHandler(Filters.text & ~Filters.command, search_wikipedia))
+
+    # Register an error handler
+    dp.add_error_handler(error)
+
+    # Start the Bot
+    updater.start_polling()
+
+    # Run the bot until you press Ctrl-C
+    updater.idle()
+
+if __name__ == '__main__':
+    main()
